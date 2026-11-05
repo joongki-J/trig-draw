@@ -77,12 +77,12 @@ header p { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.5; 
 
 .student { flex-direction: row; gap: 10px; }
 .field { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.field .label { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
-.field .value {
-  width: 100%; font-size: 1rem; color: var(--fg); min-height: 1.5em;
+.field label { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+.field input {
+  width: 100%; font: inherit; font-size: 1rem; color: var(--fg);
   background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.field input:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
 
 .problem h2 { margin: 0; font-size: 1.05rem; font-weight: 600; display: flex; align-items: baseline; gap: 8px; }
 .num {
@@ -154,10 +154,10 @@ button:disabled { opacity: 0.45; cursor: default; }
 
   <header>
     <h1>삼각함수 그래프 그리기</h1>
-    <p id="intro">학교 Google 계정으로 로그인한 뒤, 좌표평면 위에 손가락으로 각 함수의 그래프를 그리고 제출하세요.</p>
+    <p id="intro">Google 계정으로 로그인하고 학번과 성명을 입력한 뒤, 좌표평면 위에 손가락으로 각 함수의 그래프를 그리고 제출하세요.</p>
   </header>
 
-  <!-- 로그인 전 / 명단 확인 중 / 명단 오류 -->
+  <!-- 로그인 전 -->
   <section class="card login" id="loginView">
     <p class="inapp" id="inappNotice" hidden>카카오톡·네이버 등 앱 안의 브라우저에서는 Google 로그인이 막힐 수 있어요. 크롬이나 사파리로 열어 주세요.</p>
     <button type="button" id="openExternalBtn" hidden>외부 브라우저로 열기</button>
@@ -165,16 +165,16 @@ button:disabled { opacity: 0.45; cursor: default; }
     <p id="loginMsg" role="status"><span class="spin">확인하는 중…</span></p>
   </section>
 
-  <!-- 로그인 + 명단 확인 후 -->
+  <!-- 로그인 후 -->
   <div id="app" hidden>
     <section class="card student">
       <div class="field">
-        <span class="label">학번</span>
-        <div class="value" id="studentId"></div>
+        <label for="studentId">학번</label>
+        <input id="studentId" inputmode="numeric" autocomplete="off" maxlength="20" placeholder="예: 20315">
       </div>
       <div class="field">
-        <span class="label">성명</span>
-        <div class="value" id="studentName"></div>
+        <label for="studentName">성명</label>
+        <input id="studentName" autocomplete="off" maxlength="30" placeholder="예: 홍길동">
       </div>
     </section>
 
@@ -439,8 +439,8 @@ var loginView = document.getElementById("loginView");
 var loginBtn = document.getElementById("loginBtn");
 var loginMsg = document.getElementById("loginMsg");
 var appEl = document.getElementById("app");
-var idEl = document.getElementById("studentId");
-var nameEl = document.getElementById("studentName");
+var idInput = document.getElementById("studentId");
+var nameInput = document.getElementById("studentName");
 var submitBtn = document.getElementById("submitBtn");
 var statusEl = document.getElementById("status");
 var feedbackEl = document.getElementById("feedback");
@@ -452,14 +452,6 @@ function setStatus(msg, kind) {
 function setLoginMsg(msg, kind) {
   loginMsg.className = kind || "";
   loginMsg.textContent = msg;
-}
-function setLoginWaiting(msg) {
-  loginMsg.className = "";
-  loginMsg.innerHTML = "";
-  var s = document.createElement("span");
-  s.className = "spin";
-  s.textContent = msg;
-  loginMsg.appendChild(s);
 }
 
 // 카카오톡 등 앱 안 브라우저 안내 (Google이 이런 브라우저의 로그인을 막습니다)
@@ -508,8 +500,6 @@ async function api(body, retried) {
 
 // ==========================================================
 // 로그인
-var meSeq = 0;
-
 function showLoggedOut() {
   accountEl.hidden = true;
   appEl.hidden = true;
@@ -518,25 +508,11 @@ function showLoggedOut() {
   setLoginMsg("");
 }
 
-async function showLoggedIn(user) {
-  var my = ++meSeq;
+function showLoggedIn(user) {
   accountEmailEl.textContent = user.email || "";
   accountEl.hidden = false;
-  loginBtn.hidden = true;
-  appEl.hidden = true;
-  loginView.hidden = false;
-  setLoginWaiting("명단을 확인하는 중…");
-  try {
-    var me = await api({ action: "me" });
-    if (my !== meSeq) return;
-    idEl.textContent = me.studentId;
-    nameEl.textContent = me.name;
-    loginView.hidden = true;
-    appEl.hidden = false;
-  } catch (err) {
-    if (my !== meSeq) return;
-    setLoginMsg(err.message + " 다른 계정으로 로그인하려면 위의 [로그아웃]을 누르세요.", "err");
-  }
+  loginView.hidden = true;
+  appEl.hidden = false;
 }
 
 function resetWork() {
@@ -547,7 +523,7 @@ function resetWork() {
   submitBtn.disabled = false;
   submitBtn.textContent = "제출하기";
   aiSeq++;
-  idEl.textContent = nameEl.textContent = "";
+  idInput.value = nameInput.value = "";
 }
 
 function authErrorMessage(err) {
@@ -581,7 +557,6 @@ loginBtn.addEventListener("click", async function () {
 });
 
 logoutBtn.addEventListener("click", async function () {
-  meSeq++;
   resetWork(); // 공용 기기에서 다음 사람이 그림을 보지 않도록 지웁니다.
   try { await signOut(auth); } catch (err) { console.error(err); }
 });
@@ -593,7 +568,7 @@ getRedirectResult(auth).catch(function (err) {
 
 onAuthStateChanged(auth, function (user) {
   if (user) showLoggedIn(user);
-  else { meSeq++; showLoggedOut(); }
+  else showLoggedOut();
 });
 
 // ==========================================================
@@ -673,12 +648,18 @@ async function requestAi(ticket, images) {
 // 제출
 submitBtn.addEventListener("click", async function () {
   if (!auth.currentUser) { setStatus("로그인한 뒤 제출해 주세요.", "err"); return; }
+  var studentId = idInput.value.trim();
+  var name = nameInput.value.trim();
+  if (!studentId) { setStatus("학번을 입력해 주세요.", "err"); idInput.focus(); return; }
+  if (!name) { setStatus("성명을 입력해 주세요.", "err"); nameInput.focus(); return; }
   var empty = [];
   boards.forEach(function (b, i) { if (b.isEmpty()) empty.push((i + 1) + "번"); });
   if (empty.length) { setStatus(empty.join(", ") + " 그래프를 그린 뒤 제출해 주세요.", "err"); return; }
 
   var payload = {
     action: "submit",
+    studentId: studentId,
+    name: name,
     images: boards.map(function (b) { return b.toDataURL(); }),
     strokes: boards.map(function (b) { return b.getStrokes(); })
   };
