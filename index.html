@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>삼각함수 그래프 그리기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
+<style>
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --fg: #1b2330;
+  --muted: #667085;
+  --grid: #e3e8ef;
+  --axis: #3b4655;
+  --ink: #1f5fd6;
+  --line: #d6dde7;
+  --btn: #eef2f8;
+  --ok: #157a4a;
+  --err: #c0392b;
+  --font: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11151c; --surface: #19202a; --fg: #e7ecf3; --muted: #94a0b2;
+    --grid: #263040; --axis: #aab6c6; --ink: #6ea8ff; --line: #2c3646; --btn: #222b38;
+    --ok: #4cc38a; --err: #ff7a6b;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px 32px;
+  -webkit-tap-highlight-color: transparent;
+}
+main { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+header h1 { font-size: 1.25rem; margin: 0 0 4px; }
+header p { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+
+/* 로그인한 계정 표시 줄 */
+.account {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 8px 8px 12px;
+}
+.account-email {
+  flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.account-email::before { content: "로그인: "; font-weight: 400; color: var(--muted); }
+.account button {
+  flex: none; font-size: 0.85rem; color: var(--fg);
+  background: var(--btn); border: 1px solid var(--line); padding: 8px 12px;
+}
+
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 14px 12px 12px; display: flex; flex-direction: column; gap: 10px;
+}
+
+/* 로그인 화면 */
+.login { align-items: center; text-align: center; padding: 28px 16px; gap: 14px; }
+.login p { margin: 0; color: var(--muted); line-height: 1.55; }
+#loginBtn, #openExternalBtn {
+  width: 100%; max-width: 320px; font-size: 1.05rem; padding: 15px; border: 0;
+  background: var(--ink); color: var(--surface);
+}
+#openExternalBtn { background: var(--btn); color: var(--fg); border: 1px solid var(--line); font-size: 0.95rem; padding: 12px; }
+#loginMsg { min-height: 1.4em; font-size: 0.95rem; }
+#loginMsg.err { color: var(--err); }
+.inapp { font-size: 0.9rem; }
+
+.student { flex-direction: row; gap: 10px; }
+.field { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.field .label { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+.field .value {
+  width: 100%; font-size: 1rem; color: var(--fg); min-height: 1.5em;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.problem h2 { margin: 0; font-size: 1.05rem; font-weight: 600; display: flex; align-items: baseline; gap: 8px; }
+.num {
+  display: inline-grid; place-items: center; width: 1.6em; height: 1.6em; border-radius: 50%;
+  background: var(--ink); color: var(--surface); font-size: 0.85rem; font-weight: 700;
+}
+.eq { font-family: "Times New Roman", serif; font-style: italic; font-size: 1.2rem; }
+.eq b { font-style: normal; font-weight: 400; }
+.board { width: 100%; aspect-ratio: 4 / 3; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+.tools { display: flex; gap: 8px; }
+button {
+  font: inherit; font-weight: 600; cursor: pointer; border-radius: 10px;
+}
+.tools button {
+  flex: 1; font-size: 0.95rem; color: var(--fg);
+  background: var(--btn); border: 1px solid var(--line); padding: 12px 8px;
+}
+button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+button:disabled { opacity: 0.45; cursor: default; }
+
+#app { display: flex; flex-direction: column; gap: 20px; }
+.submit-area { display: flex; flex-direction: column; gap: 8px; }
+#submitBtn {
+  width: 100%; font-size: 1.05rem; padding: 15px; border: 0;
+  background: var(--ink); color: var(--surface);
+}
+#status { min-height: 1.4em; margin: 0; font-size: 0.95rem; text-align: center; }
+#status.ok { color: var(--ok); }
+#status.err { color: var(--err); }
+#feedback { gap: 8px; }
+.fb-total { margin: 0; font-weight: 700; font-size: 1.05rem; }
+#feedback ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+#feedback li { display: flex; gap: 10px; align-items: baseline; line-height: 1.45; }
+#feedback li span:last-child { min-width: 0; }
+.fb-score {
+  flex: none; font-weight: 700; font-size: 0.85rem; padding: 2px 8px; border-radius: 999px;
+  font-variant-numeric: tabular-nums; border: 1px solid currentColor;
+}
+#feedback li.good .fb-score { color: var(--ok); }
+#feedback li.mid .fb-score { color: var(--ink); }
+#feedback li.low .fb-score { color: var(--err); }
+.ai { border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.ai-title { margin: 0; font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 6px; }
+.ai-title::before {
+  content: "AI"; font-size: 0.7rem; letter-spacing: 0.04em; padding: 1px 6px; border-radius: 6px;
+  background: var(--ink); color: var(--surface);
+}
+.ai p { margin: 0; line-height: 1.55; }
+.ai .ai-label { font-weight: 700; margin-right: 4px; }
+.ai .ai-summary { color: var(--muted); }
+.ai .ai-wait { color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.ai .ai-wait::before, .spin::before {
+  content: ""; width: 14px; height: 14px; flex: none; border-radius: 50%;
+  border: 2px solid var(--line); border-top-color: var(--ink); animation: spin 0.9s linear infinite;
+}
+.spin { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ai .ai-wait::before, .spin::before { animation: none; } }
+@media (min-width: 640px) { .board { aspect-ratio: 16 / 9; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="account" id="account" hidden>
+    <span class="account-email" id="accountEmail"></span>
+    <button type="button" id="logoutBtn">로그아웃</button>
+  </div>
+
+  <header>
+    <h1>삼각함수 그래프 그리기</h1>
+    <p id="intro">학교 Google 계정으로 로그인한 뒤, 좌표평면 위에 손가락으로 각 함수의 그래프를 그리고 제출하세요.</p>
+  </header>
+
+  <!-- 로그인 전 / 명단 확인 중 / 명단 오류 -->
+  <section class="card login" id="loginView">
+    <p class="inapp" id="inappNotice" hidden>카카오톡·네이버 등 앱 안의 브라우저에서는 Google 로그인이 막힐 수 있어요. 크롬이나 사파리로 열어 주세요.</p>
+    <button type="button" id="openExternalBtn" hidden>외부 브라우저로 열기</button>
+    <button type="button" id="loginBtn" hidden>Google로 로그인</button>
+    <p id="loginMsg" role="status"><span class="spin">확인하는 중…</span></p>
+  </section>
+
+  <!-- 로그인 + 명단 확인 후 -->
+  <div id="app" hidden>
+    <section class="card student">
+      <div class="field">
+        <span class="label">학번</span>
+        <div class="value" id="studentId"></div>
+      </div>
+      <div class="field">
+        <span class="label">성명</span>
+        <div class="value" id="studentName"></div>
+      </div>
+    </section>
+
+    <section class="card problem">
+      <h2><span class="num">1</span><span class="eq">y <b>=</b> <b>sin</b> x</span></h2>
+      <div class="board"><canvas aria-label="1번 그리기 영역"></canvas></div>
+      <div class="tools">
+        <button type="button" data-act="undo">되돌리기</button>
+        <button type="button" data-act="clear">전체 지우기</button>
+      </div>
+    </section>
+
+    <section class="card problem">
+      <h2><span class="num">2</span><span class="eq">y <b>=</b> <b>cos</b> x</span></h2>
+      <div class="board"><canvas aria-label="2번 그리기 영역"></canvas></div>
+      <div class="tools">
+        <button type="button" data-act="undo">되돌리기</button>
+        <button type="button" data-act="clear">전체 지우기</button>
+      </div>
+    </section>
+
+    <section class="card problem">
+      <h2><span class="num">3</span><span class="eq">y <b>=</b> <b>tan</b> x</span></h2>
+      <div class="board"><canvas aria-label="3번 그리기 영역"></canvas></div>
+      <div class="tools">
+        <button type="button" data-act="undo">되돌리기</button>
+        <button type="button" data-act="clear">전체 지우기</button>
+      </div>
+    </section>
+
+    <div class="submit-area">
+      <button type="button" id="submitBtn">제출하기</button>
+      <p id="status" role="status"></p>
+      <div id="feedback" class="card" hidden></div>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth, GoogleAuthProvider, onAuthStateChanged,
+  signInWithPopup, signInWithRedirect, getRedirectResult, signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+// ===== 설정 =====
+const firebaseConfig = {
+  apiKey: "AIzaSyChOK43FuKfRNKJz-YEp0qQfCAWU1S1LKg",
+  authDomain: "trig-draw-8fff8.firebaseapp.com",
+  projectId: "trig-draw-8fff8",
+  storageBucket: "trig-draw-8fff8.firebasestorage.app",
+  messagingSenderId: "521368364219",
+  appId: "1:521368364219:web:f78dd5efc3507095e8759e"
+};
+const API_URL = "https://script.google.com/macros/s/AKfycbytxZsurTsQMqNzkYK0pzmEVRU5ul1N_ofxngqLNP-xBETBIcCgzWNxORHzwRZBy8dN/exec";
+
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+auth.languageCode = "ko";
+const provider = new GoogleAuthProvider();
+provider.setCustomParameters({ prompt: "select_account" }); // 공용 기기에서 다른 계정을 고를 수 있게
+
+// ==========================================================
+// 그래프 그리기 (화면·제출 이미지·획 데이터는 예전과 같습니다)
+var XMIN = -2 * Math.PI, XMAX = 2 * Math.PI, YMIN = -2, YMAX = 2;
+var PAD = { l: 14, r: 14, t: 14, b: 26 };
+var X_LABELS = ["−2π", "−3π/2", "−π", "−π/2", "", "π/2", "π", "3π/2", "2π"];
+var EXPORT_W = 800, EXPORT_H = 600; // 제출 이미지 크기(px)
+var LIGHT = { // 제출 이미지는 항상 밝은 배경으로 저장
+  surface: "#ffffff", grid: "#e3e8ef", axis: "#3b4655", muted: "#667085", ink: "#1f5fd6"
+};
+
+function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function screenColors() {
+  return { surface: css("--surface"), grid: css("--grid"), axis: css("--axis"), muted: css("--muted"), ink: css("--ink") };
+}
+
+/** 주어진 크기의 좌표 변환기 */
+function mapper(W, H) {
+  return {
+    toPx: function (x, y) {
+      return [
+        PAD.l + (x - XMIN) / (XMAX - XMIN) * (W - PAD.l - PAD.r),
+        PAD.t + (YMAX - y) / (YMAX - YMIN) * (H - PAD.t - PAD.b)
+      ];
+    },
+    toMath: function (px, py) {
+      return [
+        XMIN + (px - PAD.l) / (W - PAD.l - PAD.r) * (XMAX - XMIN),
+        YMAX - (py - PAD.t) / (H - PAD.t - PAD.b) * (YMAX - YMIN)
+      ];
+    }
+  };
+}
+
+/** 좌표평면 + 획 전체를 그립니다. 화면과 제출 이미지가 같은 함수를 씁니다. */
+function render(ctx, W, H, strokes, C, scale) {
+  var m = mapper(W, H), toPx = m.toPx, k, x, y;
+  var s = scale || 1;
+  ctx.fillStyle = C.surface; ctx.fillRect(0, 0, W, H);
+
+  ctx.lineWidth = 1;
+  for (k = -8; k <= 8; k++) {
+    x = toPx(k * Math.PI / 4, 0)[0];
+    ctx.strokeStyle = C.grid; ctx.globalAlpha = k % 2 ? 0.5 : 1;
+    ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, H - PAD.b); ctx.stroke();
+  }
+  for (k = -4; k <= 4; k++) {
+    y = toPx(0, k / 2)[1];
+    ctx.strokeStyle = C.grid; ctx.globalAlpha = k % 2 ? 0.5 : 1;
+    ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(W - PAD.r, y); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  var o = toPx(0, 0), ox = o[0], oy = o[1];
+  ctx.strokeStyle = C.axis; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(PAD.l, oy); ctx.lineTo(W - PAD.r + 6, oy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ox, H - PAD.b); ctx.lineTo(ox, PAD.t - 6); ctx.stroke();
+  ctx.fillStyle = C.axis;
+  ctx.beginPath(); ctx.moveTo(W - 2, oy); ctx.lineTo(W - 9, oy - 4); ctx.lineTo(W - 9, oy + 4); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(ox, 2); ctx.lineTo(ox - 4, 9); ctx.lineTo(ox + 4, 9); ctx.fill();
+
+  var fs = (W < 420 ? 10 : 12) * s;
+  ctx.font = fs + 'px "IBM Plex Sans KR", system-ui, sans-serif';
+  ctx.textBaseline = "top";
+  for (k = -4; k <= 4; k++) {
+    x = toPx(k * Math.PI / 2, 0)[0];
+    ctx.strokeStyle = C.axis; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(x, oy - 4); ctx.lineTo(x, oy + 4); ctx.stroke();
+    var lab = X_LABELS[k + 4];
+    if (!lab) continue;
+    ctx.fillStyle = C.muted;
+    var lx = x;
+    if (k === -4) { ctx.textAlign = "left"; lx = x - 2; }
+    else if (k === 4) { ctx.textAlign = "right"; lx = x + 2; }
+    else ctx.textAlign = "center";
+    ctx.fillText(lab, lx, oy + 6);
+  }
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  for (var v = -2; v <= 2; v++) {
+    if (v === 0) continue;
+    y = toPx(0, v)[1];
+    ctx.strokeStyle = C.axis;
+    ctx.beginPath(); ctx.moveTo(ox - 4, y); ctx.lineTo(ox + 4, y); ctx.stroke();
+    ctx.fillStyle = C.muted;
+    ctx.fillText(v < 0 ? "−" + (-v) : String(v), ox - 6, y + (v === 2 ? 4 : v === -2 ? -4 : 0));
+  }
+  ctx.textAlign = "right"; ctx.textBaseline = "top";
+  ctx.fillText("O", ox - 4, oy + 5);
+  ctx.font = "italic " + (fs + 3 * s) + 'px "Times New Roman", serif';
+  ctx.fillStyle = C.axis;
+  ctx.textAlign = "right"; ctx.textBaseline = "bottom";
+  ctx.fillText("x", W - 4, oy - 6);
+  ctx.textAlign = "left"; ctx.textBaseline = "top";
+  ctx.fillText("y", ox + 8, 2);
+
+  ctx.strokeStyle = C.ink; ctx.fillStyle = C.ink;
+  ctx.lineWidth = 3 * s; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  strokes.forEach(function (st) {
+    if (!st.length) return;
+    if (st.length === 1) {
+      var p = toPx(st[0][0], st[0][1]);
+      ctx.beginPath(); ctx.arc(p[0], p[1], 1.8 * s, 0, Math.PI * 2); ctx.fill(); return;
+    }
+    ctx.beginPath();
+    st.forEach(function (pt, i) { var q = toPx(pt[0], pt[1]); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); });
+    ctx.stroke();
+  });
+}
+
+var boards = [];
+
+function setup(section) {
+  var canvas = section.querySelector("canvas");
+  var ctx = canvas.getContext("2d");
+  var undoBtn = section.querySelector('[data-act="undo"]');
+  var clearBtn = section.querySelector('[data-act="clear"]');
+  var strokes = [], current = null, pid = null, W = 0, H = 0;
+
+  function draw() {
+    if (!W || !H) { undoBtn.disabled = clearBtn.disabled = strokes.length === 0; return; } // 숨겨져 있을 때
+    var all = current ? strokes.concat([current]) : strokes;
+    render(ctx, W, H, all, screenColors(), 1);
+    undoBtn.disabled = clearBtn.disabled = strokes.length === 0;
+  }
+  function resize() {
+    var r = canvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    W = r.width; H = r.height;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
+  }
+  function pos(e) {
+    var r = canvas.getBoundingClientRect();
+    return mapper(W, H).toMath(e.clientX - r.left, e.clientY - r.top);
+  }
+
+  canvas.addEventListener("pointerdown", function (e) {
+    if (pid !== null) return;
+    pid = e.pointerId; canvas.setPointerCapture(pid);
+    current = [pos(e)]; draw(); e.preventDefault();
+  });
+  canvas.addEventListener("pointermove", function (e) {
+    if (e.pointerId !== pid || !current) return;
+    var evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    evs.forEach(function (ev) { current.push(pos(ev)); });
+    draw(); e.preventDefault();
+  });
+  function end(e) {
+    if (e.pointerId !== pid) return;
+    if (current && current.length) strokes.push(current);
+    current = null; pid = null; draw();
+  }
+  canvas.addEventListener("pointerup", end);
+  canvas.addEventListener("pointercancel", end);
+  undoBtn.addEventListener("click", function () { strokes.pop(); draw(); });
+  clearBtn.addEventListener("click", function () { strokes.length = 0; draw(); });
+
+  new ResizeObserver(resize).observe(canvas); // 로그인 후 화면이 보이면 이때 크기가 잡힙니다.
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  if (mq.addEventListener) mq.addEventListener("change", draw);
+  if (document.fonts) document.fonts.ready.then(draw);
+  resize();
+
+  return {
+    isEmpty: function () { return strokes.length === 0; },
+    reset: function () { strokes.length = 0; current = null; pid = null; draw(); },
+    // 채점용 획 데이터: 수학 좌표, 소수 셋째 자리, 가까운 점은 생략
+    getStrokes: function () {
+      return strokes.map(function (st) {
+        var out = [], last = null;
+        st.forEach(function (p, i) {
+          if (last && i < st.length - 1 && Math.abs(p[0] - last[0]) + Math.abs(p[1] - last[1]) < 0.02) return;
+          last = p;
+          out.push([Math.round(p[0] * 1000) / 1000, Math.round(p[1] * 1000) / 1000]);
+        });
+        return out;
+      });
+    },
+    toDataURL: function () {
+      // 화면 크기와 상관없이 800×600 밝은 배경 PNG로 만듭니다.
+      var c = document.createElement("canvas");
+      c.width = EXPORT_W; c.height = EXPORT_H;
+      // 눈금·글자 비율이 화면과 같도록 400×300 기준으로 그린 뒤 2배 확대합니다.
+      var scale = EXPORT_W / 400;
+      var x = c.getContext("2d");
+      x.setTransform(scale, 0, 0, scale, 0, 0);
+      render(x, EXPORT_W / scale, EXPORT_H / scale, strokes, LIGHT, 1);
+      return c.toDataURL("image/png");
+    }
+  };
+}
+
+document.querySelectorAll(".problem").forEach(function (s) { boards.push(setup(s)); });
+
+// ==========================================================
+// 화면 요소
+var accountEl = document.getElementById("account");
+var accountEmailEl = document.getElementById("accountEmail");
+var logoutBtn = document.getElementById("logoutBtn");
+var loginView = document.getElementById("loginView");
+var loginBtn = document.getElementById("loginBtn");
+var loginMsg = document.getElementById("loginMsg");
+var appEl = document.getElementById("app");
+var idEl = document.getElementById("studentId");
+var nameEl = document.getElementById("studentName");
+var submitBtn = document.getElementById("submitBtn");
+var statusEl = document.getElementById("status");
+var feedbackEl = document.getElementById("feedback");
+
+function setStatus(msg, kind) {
+  statusEl.textContent = msg;
+  statusEl.className = kind || "";
+}
+function setLoginMsg(msg, kind) {
+  loginMsg.className = kind || "";
+  loginMsg.textContent = msg;
+}
+function setLoginWaiting(msg) {
+  loginMsg.className = "";
+  loginMsg.innerHTML = "";
+  var s = document.createElement("span");
+  s.className = "spin";
+  s.textContent = msg;
+  loginMsg.appendChild(s);
+}
+
+// 카카오톡 등 앱 안 브라우저 안내 (Google이 이런 브라우저의 로그인을 막습니다)
+var ua = navigator.userAgent || "";
+if (/KAKAOTALK|NAVER\(|Instagram|FBAN|FBAV|Line\/|DaumApps/i.test(ua)) {
+  document.getElementById("inappNotice").hidden = false;
+  if (/KAKAOTALK/i.test(ua)) {
+    var extBtn = document.getElementById("openExternalBtn");
+    extBtn.hidden = false;
+    extBtn.addEventListener("click", function () {
+      location.href = "kakaotalk://web/openExternal?url=" + encodeURIComponent(location.href);
+    });
+  }
+}
+
+// ==========================================================
+// 서버(Apps Script) 요청 — 모든 요청에 Firebase 로그인 토큰을 함께 보냅니다.
+async function api(body, retried) {
+  var user = auth.currentUser;
+  if (!user) { var e0 = new Error("로그인이 필요합니다."); e0.code = "AUTH_REQUIRED"; throw e0; }
+  var idToken = await user.getIdToken(!!retried);
+  var res;
+  try {
+    res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // Apps Script가 받을 수 있는 형식
+      body: JSON.stringify(Object.assign({}, body, { idToken: idToken })),
+      redirect: "follow"
+    });
+  } catch (err) {
+    throw new Error("서버에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.");
+  }
+  var data;
+  try { data = await res.json(); }
+  catch (err) { throw new Error("서버 응답을 읽지 못했습니다. 잠시 후 다시 시도해 주세요."); }
+  if (!data.ok) {
+    if (!retried && (data.code === "AUTH_EXPIRED" || data.code === "AUTH_INVALID")) {
+      return api(body, true); // 토큰을 새로 받아 한 번 더
+    }
+    var e = new Error(data.error || "요청을 처리하지 못했습니다.");
+    e.code = data.code;
+    throw e;
+  }
+  return data;
+}
+
+// ==========================================================
+// 로그인
+var meSeq = 0;
+
+function showLoggedOut() {
+  accountEl.hidden = true;
+  appEl.hidden = true;
+  loginView.hidden = false;
+  loginBtn.hidden = false;
+  setLoginMsg("");
+}
+
+async function showLoggedIn(user) {
+  var my = ++meSeq;
+  accountEmailEl.textContent = user.email || "";
+  accountEl.hidden = false;
+  loginBtn.hidden = true;
+  appEl.hidden = true;
+  loginView.hidden = false;
+  setLoginWaiting("명단을 확인하는 중…");
+  try {
+    var me = await api({ action: "me" });
+    if (my !== meSeq) return;
+    idEl.textContent = me.studentId;
+    nameEl.textContent = me.name;
+    loginView.hidden = true;
+    appEl.hidden = false;
+  } catch (err) {
+    if (my !== meSeq) return;
+    setLoginMsg(err.message + " 다른 계정으로 로그인하려면 위의 [로그아웃]을 누르세요.", "err");
+  }
+}
+
+function resetWork() {
+  boards.forEach(function (b) { b.reset(); });
+  feedbackEl.innerHTML = "";
+  feedbackEl.hidden = true;
+  setStatus("");
+  submitBtn.disabled = false;
+  submitBtn.textContent = "제출하기";
+  aiSeq++;
+  idEl.textContent = nameEl.textContent = "";
+}
+
+function authErrorMessage(err) {
+  var c = err && err.code || "";
+  if (c === "auth/unauthorized-domain") return "이 주소에서는 로그인할 수 없습니다. 선생님께 알려 주세요.";
+  if (c === "auth/network-request-failed") return "인터넷 연결을 확인하고 다시 시도해 주세요.";
+  if (c === "auth/web-storage-unsupported" || c === "auth/operation-not-supported-in-this-environment") {
+    return "이 브라우저에서는 로그인할 수 없습니다. 크롬이나 사파리로 열어 주세요.";
+  }
+  return "로그인하지 못했습니다. 다시 시도해 주세요.";
+}
+
+loginBtn.addEventListener("click", async function () {
+  loginBtn.disabled = true;
+  setLoginMsg("");
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (err) {
+    if (err && (err.code === "auth/popup-blocked" || err.code === "auth/operation-not-supported-in-this-environment")) {
+      try { await signInWithRedirect(auth, provider); return; } catch (e2) { err = e2; }
+    }
+    if (err && (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request")) {
+      setLoginMsg("");
+    } else {
+      console.error(err);
+      setLoginMsg(authErrorMessage(err), "err");
+    }
+  } finally {
+    loginBtn.disabled = false;
+  }
+});
+
+logoutBtn.addEventListener("click", async function () {
+  meSeq++;
+  resetWork(); // 공용 기기에서 다음 사람이 그림을 보지 않도록 지웁니다.
+  try { await signOut(auth); } catch (err) { console.error(err); }
+});
+
+getRedirectResult(auth).catch(function (err) {
+  console.error(err);
+  setLoginMsg(authErrorMessage(err), "err");
+});
+
+onAuthStateChanged(auth, function (user) {
+  if (user) showLoggedIn(user);
+  else { meSeq++; showLoggedOut(); }
+});
+
+// ==========================================================
+// 채점 결과·AI 피드백 표시 (예전과 같습니다)
+function showFeedback(grade) {
+  feedbackEl.innerHTML = "";
+  if (!grade || !grade.results) { feedbackEl.hidden = true; return; }
+  var head = document.createElement("p");
+  head.className = "fb-total";
+  head.textContent = "자동 채점 " + grade.total + "점";
+  feedbackEl.appendChild(head);
+  var list = document.createElement("ul");
+  grade.results.forEach(function (r) {
+    var li = document.createElement("li");
+    li.className = r.score >= 85 ? "good" : r.score >= 60 ? "mid" : "low";
+    var badge = document.createElement("span");
+    badge.className = "fb-score";
+    badge.textContent = r.label + " " + r.score + "점";
+    var msg = document.createElement("span");
+    msg.textContent = r.message;
+    li.appendChild(badge); li.appendChild(msg);
+    list.appendChild(li);
+  });
+  feedbackEl.appendChild(list);
+  feedbackEl.hidden = false;
+  feedbackEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+var aiSeq = 0; // 다시 제출하거나 로그아웃하면 이전 AI 응답은 무시합니다.
+
+function aiBlock() {
+  var box = feedbackEl.querySelector(".ai");
+  if (!box) {
+    box = document.createElement("div");
+    box.className = "ai";
+    feedbackEl.appendChild(box);
+  }
+  box.innerHTML = "";
+  var t = document.createElement("p");
+  t.className = "ai-title";
+  t.textContent = "왜 그런지 설명해 줄게요";
+  box.appendChild(t);
+  return box;
+}
+
+function aiLine(box, cls, text, label) {
+  var p = document.createElement("p");
+  if (cls) p.className = cls;
+  if (label) {
+    var b = document.createElement("span");
+    b.className = "ai-label";
+    b.textContent = label;
+    p.appendChild(b);
+  }
+  p.appendChild(document.createTextNode(text));
+  box.appendChild(p);
+}
+
+async function requestAi(ticket, images) {
+  var my = ++aiSeq;
+  var box = aiBlock();
+  aiLine(box, "ai-wait", "그림을 살펴보고 있어요. 10~30초쯤 걸릴 수 있어요.");
+  try {
+    var res = await api({ action: "ai", ticket: ticket, images: images });
+    if (my !== aiSeq) return;
+    var b = aiBlock();
+    res.feedback.items.forEach(function (it) { aiLine(b, "", it.feedback, it.label); });
+    if (res.feedback.summary) aiLine(b, "ai-summary", res.feedback.summary);
+  } catch (err) {
+    if (my !== aiSeq) return;
+    var b2 = aiBlock();
+    aiLine(b2, "ai-summary", (err && err.message) || "AI 피드백을 받지 못했습니다. 자동 채점 결과를 참고해 주세요.");
+  }
+}
+
+// ==========================================================
+// 제출
+submitBtn.addEventListener("click", async function () {
+  if (!auth.currentUser) { setStatus("로그인한 뒤 제출해 주세요.", "err"); return; }
+  var empty = [];
+  boards.forEach(function (b, i) { if (b.isEmpty()) empty.push((i + 1) + "번"); });
+  if (empty.length) { setStatus(empty.join(", ") + " 그래프를 그린 뒤 제출해 주세요.", "err"); return; }
+
+  var payload = {
+    action: "submit",
+    images: boards.map(function (b) { return b.toDataURL(); }),
+    strokes: boards.map(function (b) { return b.getStrokes(); })
+  };
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = "제출하는 중…";
+  setStatus("");
+
+  try {
+    var res = await api(payload);
+    submitBtn.disabled = false;
+    submitBtn.textContent = "다시 제출하기";
+    setStatus(res.name + " 학생, " + res.time + "에 제출했습니다.", "ok");
+    showFeedback(res.grade);
+    if (res.aiTicket && res.grade) requestAi(res.aiTicket, payload.images);
+    else aiSeq++;
+  } catch (err) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "제출하기";
+    setStatus("제출하지 못했습니다. " + (err && err.message ? err.message : "잠시 후 다시 눌러 주세요."), "err");
+  }
+});
+</script>
+</body>
+</html>
